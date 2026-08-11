@@ -33,10 +33,10 @@ const SMALL_THRESHOLD = 0.000001;
  *   [WKN, stock name, active shares, cost basis, average buy price].
  *   Returns a single empty row when there are no active positions.
  */
-function GET_FIFO_POSITIONS(
+const GET_FIFO_POSITIONS = (
   transactions: SheetRange,
   stocksImport: SheetRange
-): (string | number)[][] {
+): (string | number)[][] => {
   const positions = processTransactionsFIFO(transactions);
   const result: (string | number)[][] = [];
   const nameMap: Record<string, string> = {};
@@ -60,7 +60,7 @@ function GET_FIFO_POSITIONS(
   }
 
   return result.length > 0 ? result : [["", "", "", "", ""]];
-}
+};
 
 /**
  * Computes the realized gain/loss for each sell transaction using FIFO cost basis.
@@ -72,7 +72,7 @@ function GET_FIFO_POSITIONS(
  *   [date, WKN, sold quantity, cost basis of sold shares, net proceeds, realized PnL, return ratio].
  *   Returns a single empty row when there are no realized sell events.
  */
-function GET_REALIZED_GAINS(transactions: SheetRange): (string | number)[][] {
+const GET_REALIZED_GAINS = (transactions: SheetRange): (string | number)[][] => {
   const realizedList: (string | number)[][] = [];
   const fifoMap: Record<string, Array<{ qty: number; price: number }>> = {};
 
@@ -140,7 +140,7 @@ function GET_REALIZED_GAINS(transactions: SheetRange): (string | number)[][] {
   }
 
   return realizedList.length > 0 ? realizedList : [["", "", "", "", "", "", ""]];
-}
+};
 
 /**
  * Calculates MWRR/XIRR for a specific stock or the full portfolio.
@@ -152,12 +152,12 @@ function GET_REALIZED_GAINS(transactions: SheetRange): (string | number)[][] {
  * @param stocksImport - Stock metadata rows used to look up the current market price.
  * @returns The annualized XIRR rate as a number, or the string "#N/A" when the calculation fails.
  */
-function GET_POSITION_XIRR(
-  wknFilter: unknown,
+const GET_POSITION_XIRR = (
+  wknFilter: string | "TOTAL",
   transactions: SheetRange,
   dividends: SheetRange,
   stocksImport: SheetRange
-): number | string {
+): number | string => {
   const dates: Date[] = [];
   const amounts: number[] = [];
   const targetWkn = String(wknFilter ?? "")
@@ -235,7 +235,7 @@ function GET_POSITION_XIRR(
   } catch {
     return "#N/A";
   }
-}
+};
 
 /**
  * Builds FIFO position state from raw transaction rows.
@@ -243,7 +243,7 @@ function GET_POSITION_XIRR(
  * @param transactions - A sheet-style transaction range.
  * @returns A map keyed by WKN with active share count, total cost basis and remaining lots.
  */
-function processTransactionsFIFO(transactions: SheetRange): Record<string, PositionData> {
+const processTransactionsFIFO = (transactions: SheetRange): Record<string, PositionData> => {
   const positions: Record<string, PositionData> = {};
 
   for (const transaction of Array.isArray(transactions) ? transactions : []) {
@@ -308,7 +308,7 @@ function processTransactionsFIFO(transactions: SheetRange): Record<string, Posit
   }
 
   return positions;
-}
+};
 
 /**
  * Looks up the current price for a stock by WKN from a stock import sheet.
@@ -317,7 +317,7 @@ function processTransactionsFIFO(transactions: SheetRange): Record<string, Posit
  * @param stocksImport - A sheet-style metadata range with WKN in column A and price in column J.
  * @returns The parsed current price, or 0 when the price cannot be found or parsed.
  */
-function getPriceFromImport(wkn: string, stocksImport: SheetRange): number {
+const getPriceFromImport = (wkn: string, stocksImport: SheetRange): number => {
   const targetWkn = String(wkn).trim();
 
   for (const row of Array.isArray(stocksImport) ? stocksImport : []) {
@@ -328,7 +328,7 @@ function getPriceFromImport(wkn: string, stocksImport: SheetRange): number {
   }
 
   return 0;
-}
+};
 
 /**
  * Solves for annualized XIRR using the Newton-Raphson method.
@@ -337,7 +337,7 @@ function getPriceFromImport(wkn: string, stocksImport: SheetRange): number {
  * @param dates - Corresponding dates for each cash flow.
  * @returns The annualized rate of return.
  */
-function calculateXIRR(values: number[], dates: Date[]): number {
+const calculateXIRR = (values: number[], dates: Date[]): number => {
   let rate = 0.1;
 
   for (let iter = 0; iter < 100; iter++) {
@@ -357,7 +357,7 @@ function calculateXIRR(values: number[], dates: Date[]): number {
   }
 
   return rate;
-}
+};
 
 /**
  * Normalizes a sheet value into a Date object.
@@ -365,10 +365,10 @@ function calculateXIRR(values: number[], dates: Date[]): number {
  * @param value - A potential date value from Google Sheets.
  * @returns A Date when parsing succeeds, otherwise null.
  */
-function parseSheetDate(value: unknown): Date | null {
+const parseSheetDate = (value: unknown): Date | null => {
   const date = value instanceof Date ? value : new Date(String(value ?? ""));
   return Number.isNaN(date.getTime()) ? null : date;
-}
+};
 
 const g = globalThis as any;
 g.GET_FIFO_POSITIONS = GET_FIFO_POSITIONS;
