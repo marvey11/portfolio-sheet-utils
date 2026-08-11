@@ -94,7 +94,7 @@ const GET_REALIZED_GAINS = (transactions: SheetRange): (string | number)[][] => 
       fifoMap[wkn] = [];
     }
 
-    if (type === "BUY" || type === "SPIN_OFF") {
+    if (type === "BUY") {
       const costPerShare = (px * qty + fee) / qty;
       fifoMap[wkn].push({ qty, price: costPerShare });
     } else if (type === "STOCK_SPLIT") {
@@ -178,7 +178,7 @@ const GET_POSITION_XIRR = (
     if (!parsedDate || !Number.isFinite(netVal)) continue;
     if (targetWkn !== "TOTAL" && wkn !== targetWkn) continue;
 
-    if (type === "BUY" || type === "SPIN_OFF") {
+    if (type === "BUY") {
       dates.push(parsedDate);
       amounts.push(-Math.abs(netVal));
     } else if (type === "SELL") {
@@ -266,7 +266,7 @@ const processTransactionsFIFO = (transactions: SheetRange): Record<string, Posit
 
     const pos = positions[wkn];
 
-    if (type === "BUY" || type === "SPIN_OFF") {
+    if (type === "BUY") {
       const totalCost = qty * px + fee;
       pos.lots.push({ qty, cost: totalCost });
       pos.activeShares += qty;
