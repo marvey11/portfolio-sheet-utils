@@ -1,0 +1,32 @@
+{
+  "name": "portfolio-sheet-utils",
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marvey11/portfolio-sheet-utils.git"
+  },
+  "license": "MIT",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc && cp src/appsscript.json dist/",
+    "format": "prettier --write \"src/**/*.{ts,js,json,md}\" \"*.md\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json,md}\" \"*.md\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "login": "clasp login",
+    "push": "npm run build && clasp push",
+    "pull": "clasp pull"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.3.0",
+    "@types/google-apps-script": "^2.0.12",
+    "@vitest/coverage-v8": "^4.1.10",
+    "prettier": "^3.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}
