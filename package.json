@@ -14,6 +14,8 @@
     "build": "tsc && cp src/appsscript.json dist/",
     "format": "prettier --write \"src/**/*.{ts,js,json,md}\" \"*.md\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,json,md}\" \"*.md\"",
+    "lint": "eslint \"src/**/*.{ts,js}\"",
+    "lint:fix": "eslint --fix \"src/**/*.{ts,js}\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
@@ -24,9 +26,15 @@
   "devDependencies": {
     "@google/clasp": "^3.3.0",
     "@types/google-apps-script": "^2.0.12",
+    "@types/node": "^24.13.3",
+    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/parser": "^8.67.0",
     "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
     "prettier": "^3.0.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.10"
   }
 }

@@ -1,31 +1,21 @@
 {
-    "compilerOptions": {
-        "target": "ES2022",
-        "module": "ESNext",
-        "moduleResolution": "bundler",
-        "moduleDetection": "legacy",
-        "lib": [
-            "ES2022"
-        ],
-        "strict": true,
-        "noImplicitAny": true,
-        "esModuleInterop": true,
-        "experimentalDecorators": true,
-        "skipLibCheck": true,
-        "noLib": false,
-        "outDir": "./dist",
-        "rootDir": "./src",
-        "removeComments": false,
-        "types": [
-            "@types/google-apps-script"
-        ]
-    },
-    "include": [
-        "src/**/*"
-    ],
-    "exclude": [
-        "src/**/*.test.ts",
-        "node_modules",
-        "dist"
-    ]
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "legacy",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noImplicitAny": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "skipLibCheck": true,
+    "noLib": false,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "removeComments": false,
+    "types": ["@types/google-apps-script"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
