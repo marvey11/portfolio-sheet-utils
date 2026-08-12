@@ -1,30 +1,27 @@
-name: Dependabot Auto-merge
+#
+# Based on https://docs.github.com/en/code-security/tutorials/secure-your-dependencies/automate-dependabot-with-actions#enabling-automerge-on-a-pull-request
+#
 
-on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
+name: Dependabot auto-merge
+on: pull_request
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  auto-merge:
+  dependabot:
     runs-on: ubuntu-latest
-    # Run only on PRs created by Dependabot
-    if: github.actor == 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == 'marvey11/portfolio-sheet-utils'
     steps:
-      # Step 1: Fetch metadata about the packages being updated
       - name: Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v3
+        uses: dependabot/fetch-metadata@3
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-
-      # Step 2: Enable auto-merge for dev-dependencies group or patch/minor updates
       - name: Enable auto-merge for Dependabot PRs
         if: steps.metadata.outputs.dependency-group == 'dev-dependencies' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
-        run: gh pr merge --auto --squash "$PR_URL"
+        run: gh pr merge --auto --merge "$PR_URL"
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
