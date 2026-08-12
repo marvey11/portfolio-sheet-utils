@@ -97,7 +97,7 @@ const GET_REALIZED_GAINS = (transactions: SheetRange): (string | number)[][] => 
     if (type === "BUY") {
       const costPerShare = (px * qty + fee) / qty;
       fifoMap[wkn].push({ qty, price: costPerShare });
-    } else if (type === "STOCK_SPLIT") {
+    } else if (type === "SPLIT") {
       const totalOldShares = fifoMap[wkn].reduce((acc, lot) => acc + lot.qty, 0);
       if (totalOldShares > 0) {
         const ratio = qty / totalOldShares;
@@ -271,7 +271,7 @@ const processTransactionsFIFO = (transactions: SheetRange): Record<string, Posit
       pos.lots.push({ qty, cost: totalCost });
       pos.activeShares += qty;
       pos.costBasis += totalCost;
-    } else if (type === "STOCK_SPLIT") {
+    } else if (type === "SPLIT") {
       if (pos.activeShares > 0) {
         const ratio = qty / pos.activeShares;
         pos.activeShares = qty;
@@ -338,21 +338,25 @@ const getPriceFromImport = (wkn: string, stocksImport: SheetRange): number => {
  * @returns The annualized rate of return.
  */
 const calculateXIRR = (values: number[], dates: Date[]): number => {
+  const MILLISECONDS_PER_YEAR = 365 * 24 * 3600 * 1000;
+  const MAX_ITERATIONS = 100;
+  const RATE_THRESHOLD = 1e-7;
+
   let rate = 0.1;
 
-  for (let iter = 0; iter < 100; iter++) {
+  for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
     let fValue = 0;
     let fDerivative = 0;
 
     for (let i = 0; i < values.length; i++) {
-      const exp = (dates[i].getTime() - dates[0].getTime()) / (365 * 24 * 3600 * 1000);
+      const exp = (dates[i].getTime() - dates[0].getTime()) / MILLISECONDS_PER_YEAR;
       fValue += values[i] / Math.pow(1 + rate, exp);
       fDerivative -= (exp * values[i]) / Math.pow(1 + rate, exp + 1);
     }
 
     const newRate = rate - fValue / fDerivative;
     if (!Number.isFinite(newRate)) break;
-    if (Math.abs(newRate - rate) < 1e-7) return newRate;
+    if (Math.abs(newRate - rate) < RATE_THRESHOLD) return newRate;
     rate = newRate;
   }
 
