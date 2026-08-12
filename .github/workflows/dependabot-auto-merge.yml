@@ -1,0 +1,28 @@
+name: Dependabot Auto-merge
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    # Run only on PRs created by Dependabot
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      # Step 1: Fetch metadata about the packages being updated
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v3
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      # Step 2: Enable auto-merge for dev-dependencies group or patch/minor updates
+      - name: Enable auto-merge for Dependabot PRs
+        if: steps.metadata.outputs.dependency-group == 'dev-dependencies' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
