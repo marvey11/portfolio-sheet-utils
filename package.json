@@ -2,8 +2,8 @@
   "name": "portfolio-sheet-utils",
   "version": "0.1.0",
   "description": "",
-  "type": "module",
   "private": true,
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/marvey11/portfolio-sheet-utils.git"
@@ -11,7 +11,8 @@
   "license": "MIT",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc && cp src/appsscript.json dist/",
+    "copy-manifest": "node copy-manifest.mjs",
+    "build": "rollup -c && npm run copy-manifest",
     "format": "prettier --write \"src/**/*.{ts,js,json,md}\" \"*.md\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,json,md}\" \"*.md\"",
     "lint": "eslint \"src/**/*.{ts,js}\"",
@@ -19,13 +20,17 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "login": "clasp login",
     "push": "npm run build && clasp push",
-    "pull": "clasp pull"
+    "deploy": "npm run build && clasp deploy",
+    "pull": "clasp pull",
+    "login": "clasp login"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@google/clasp": "^3.3.0",
+    "@rollup/plugin-commonjs": "^29.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
     "@types/google-apps-script": "^2.0.12",
     "@types/node": "^26.2.0",
     "@typescript-eslint/eslint-plugin": "^8.67.0",
@@ -34,6 +39,7 @@
     "eslint": "^10.8.1",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.0.0",
+    "rollup": "^4.62.5",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.10"
