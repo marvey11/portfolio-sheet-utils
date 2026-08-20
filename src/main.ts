@@ -24,7 +24,6 @@ const SMALL_THRESHOLD = 0.000001;
 /**
  * Returns the current open FIFO positions for each stock in the transaction history.
  *
- * @customfunction
  * @param transactions - A sheet-style range where each row is a transaction record.
  *   Expected columns: [date, wkn, type, shares, price, fees, total]
  * @param stockData - A sheet-style range for stock metadata.
@@ -33,7 +32,7 @@ const SMALL_THRESHOLD = 0.000001;
  *   [WKN, stock name, active shares, cost basis, average buy price].
  *   Returns a single empty row when there are no active positions.
  */
-const GET_FIFO_POSITIONS = (
+const getFifoPositions = (
   transactions: SheetRange,
   stockData: SheetRange
 ): (string | number)[][] => {
@@ -65,14 +64,13 @@ const GET_FIFO_POSITIONS = (
 /**
  * Computes the realized gain/loss for each sell transaction using FIFO cost basis.
  *
- * @customfunction
  * @param transactions - A sheet-style range with transaction rows.
  *   Expected columns: [date, wkn, type, shares, price, fees, total]
  * @returns A result matrix suitable for Google Sheets containing rows of:
  *   [date, WKN, sold quantity, cost basis of sold shares, net proceeds, realized PnL, return ratio].
  *   Returns a single empty row when there are no realized sell events.
  */
-const GET_REALIZED_GAINS = (transactions: SheetRange): (string | number)[][] => {
+const getRealizedGains = (transactions: SheetRange): (string | number)[][] => {
   const realizedList: (string | number)[][] = [];
   const fifoMap: Record<string, Array<{ qty: number; price: number }>> = {};
 
@@ -145,14 +143,13 @@ const GET_REALIZED_GAINS = (transactions: SheetRange): (string | number)[][] => 
 /**
  * Calculates MWRR/XIRR for a specific stock or the full portfolio.
  *
- * @customfunction
  * @param wknFilter - The WKN to analyze, or "TOTAL" to evaluate the entire portfolio.
  * @param transactions - Transaction rows with fields [date, wkn, type, shares, price, fees, total].
  * @param dividends - Dividend rows with at least [date, wkn, ..., net payout].
  * @param stockData - Stock metadata rows used to look up the current market price.
  * @returns The annualized XIRR rate as a number, or the string "#N/A" when the calculation fails.
  */
-const GET_POSITION_XIRR = (
+const getPositionXirr = (
   wknFilter: string | "TOTAL",
   transactions: SheetRange,
   dividends: SheetRange,
@@ -374,9 +371,11 @@ const parseSheetDate = (value: unknown): Date | null => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const g = globalThis as any;
-g.GET_FIFO_POSITIONS = GET_FIFO_POSITIONS;
-g.GET_REALIZED_GAINS = GET_REALIZED_GAINS;
-g.GET_POSITION_XIRR = GET_POSITION_XIRR;
-g.parseSheetDate = parseSheetDate;
-g.processTransactionsFIFO = processTransactionsFIFO;
+export {
+  getFifoPositions,
+  getRealizedGains,
+  getPositionXirr,
+  parseSheetDate,
+  processTransactionsFIFO,
+};
+export type { SheetRange, SheetRow };

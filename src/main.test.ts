@@ -1,5 +1,11 @@
+import {
+  getFifoPositions,
+  getRealizedGains,
+  getPositionXirr,
+  parseSheetDate,
+  processTransactionsFIFO,
+} from "./main";
 import { describe, expect, it } from "vitest";
-import "./main";
 
 describe("portfolio utilities", () => {
   it("processTransactionsFIFO computes active positions correctly", () => {
@@ -17,20 +23,20 @@ describe("portfolio utilities", () => {
     expect(positions.ABC.lots[1].qty).toBe(5);
   });
 
-  it("GET_FIFO_POSITIONS returns a structured sheet output", () => {
+  it("getFifoPositions returns a structured sheet output", () => {
     const transactions = [["2026-01-01", "XYZ", "BUY", 2, 50, 0, 100]];
     const stocksImport = [["XYZ", "ignored", "ignored", "Example Corp", 0, 0, 0, 0, 0, 10]];
 
-    const output = GET_FIFO_POSITIONS(transactions, stocksImport);
+    const output = getFifoPositions(transactions, stocksImport);
     expect(output).toEqual([["XYZ", "Example Corp", 2, 100, 50]]);
   });
 
-  it("GET_REALIZED_GAINS returns correct realized PnL", () => {
+  it("getRealizedGains returns correct realized PnL", () => {
     const transactions = [
       ["2026-01-01", "ABC", "BUY", 10, 5, 0, 50],
       ["2026-04-01", "ABC", "SELL", 4, 10, 0, 40],
     ];
-    const results = GET_REALIZED_GAINS(transactions);
+    const results = getRealizedGains(transactions);
 
     expect(results).toHaveLength(1);
     expect(results[0][1]).toBe("ABC");
@@ -40,7 +46,7 @@ describe("portfolio utilities", () => {
     expect(results[0][5]).toBe(20);
   });
 
-  it("GET_POSITION_XIRR returns a positive rate for a simple buy/sell", () => {
+  it("getPositionXirr returns a positive rate for a simple buy/sell", () => {
     const transactions = [
       ["2026-01-01", "ABC", "BUY", 1, 100, 0, 100],
       ["2027-01-01", "ABC", "SELL", 1, 110, 0, 110],
@@ -50,7 +56,7 @@ describe("portfolio utilities", () => {
       ["ABC", null, null, null, null, null, null, null, null, 110],
     ];
 
-    const result = GET_POSITION_XIRR("ABC", transactions, dividends, stocksImport);
+    const result = getPositionXirr("ABC", transactions, dividends, stocksImport);
     expect(typeof result).toBe("number");
     expect(result as number).toBeGreaterThan(0);
   });
