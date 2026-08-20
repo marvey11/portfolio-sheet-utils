@@ -6,7 +6,6 @@ import {
   processTransactionsFIFO,
 } from "./main";
 import { describe, expect, it } from "vitest";
-import "./main";
 
 describe("portfolio utilities", () => {
   it("processTransactionsFIFO computes active positions correctly", () => {

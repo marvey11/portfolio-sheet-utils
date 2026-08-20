@@ -2,8 +2,8 @@
   "name": "portfolio-sheet-utils",
   "version": "0.1.0",
   "description": "",
-  "private": true,
   "type": "module",
+  "private": true,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/marvey11/portfolio-sheet-utils.git"
