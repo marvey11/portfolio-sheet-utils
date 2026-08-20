@@ -27,7 +27,7 @@ const SMALL_THRESHOLD = 0.000001;
  * @customfunction
  * @param transactions - A sheet-style range where each row is a transaction record.
  *   Expected columns: [date, wkn, type, shares, price, fees, total]
- * @param stocksImport - A sheet-style range for stock metadata.
+ * @param stockData - A sheet-style range for stock metadata.
  *   Expected columns include WKN in column A and stock name in column D.
  * @returns A two-dimensional array suitable for Google Sheets output with rows of:
  *   [WKN, stock name, active shares, cost basis, average buy price].
@@ -35,14 +35,14 @@ const SMALL_THRESHOLD = 0.000001;
  */
 const GET_FIFO_POSITIONS = (
   transactions: SheetRange,
-  stocksImport: SheetRange
+  stockData: SheetRange
 ): (string | number)[][] => {
   const positions = processTransactionsFIFO(transactions);
   const result: (string | number)[][] = [];
   const nameMap: Record<string, string> = {};
 
-  if (Array.isArray(stocksImport)) {
-    for (const row of stocksImport) {
+  if (Array.isArray(stockData)) {
+    for (const row of stockData) {
       if (!Array.isArray(row)) continue;
       const wkn = String(row[0] ?? "").trim();
       const name = row[3] ?? "";
@@ -149,14 +149,14 @@ const GET_REALIZED_GAINS = (transactions: SheetRange): (string | number)[][] => 
  * @param wknFilter - The WKN to analyze, or "TOTAL" to evaluate the entire portfolio.
  * @param transactions - Transaction rows with fields [date, wkn, type, shares, price, fees, total].
  * @param dividends - Dividend rows with at least [date, wkn, ..., net payout].
- * @param stocksImport - Stock metadata rows used to look up the current market price.
+ * @param stockData - Stock metadata rows used to look up the current market price.
  * @returns The annualized XIRR rate as a number, or the string "#N/A" when the calculation fails.
  */
 const GET_POSITION_XIRR = (
   wknFilter: string | "TOTAL",
   transactions: SheetRange,
   dividends: SheetRange,
-  stocksImport: SheetRange
+  stockData: SheetRange
 ): number | string => {
   const dates: Date[] = [];
   const amounts: number[] = [];
@@ -211,7 +211,7 @@ const GET_POSITION_XIRR = (
     let totalMarketVal = 0;
     for (const [wkn, pos] of Object.entries(fifoData)) {
       if (pos.activeShares > SMALL_THRESHOLD) {
-        const curPx = getPriceFromImport(wkn, stocksImport);
+        const curPx = getPriceFromImport(wkn, stockData);
         totalMarketVal += pos.activeShares * curPx;
       }
     }
@@ -222,7 +222,7 @@ const GET_POSITION_XIRR = (
   } else {
     const pos = fifoData[targetWkn];
     if (pos && pos.activeShares > SMALL_THRESHOLD) {
-      const curPx = getPriceFromImport(targetWkn, stocksImport);
+      const curPx = getPriceFromImport(targetWkn, stockData);
       dates.push(now);
       amounts.push(pos.activeShares * curPx);
     }
@@ -314,16 +314,16 @@ const processTransactionsFIFO = (transactions: SheetRange): Record<string, Posit
  * Looks up the current price for a stock by WKN from a stock import sheet.
  *
  * @param wkn - The stock identifier to search for.
- * @param stocksImport - A sheet-style metadata range with WKN in column A and price in column J.
+ * @param stockData - A sheet-style metadata range with WKN in column A and price in column K.
  * @returns The parsed current price, or 0 when the price cannot be found or parsed.
  */
-const getPriceFromImport = (wkn: string, stocksImport: SheetRange): number => {
+const getPriceFromImport = (wkn: string, stockData: SheetRange): number => {
   const targetWkn = String(wkn).trim();
 
-  for (const row of Array.isArray(stocksImport) ? stocksImport : []) {
+  for (const row of Array.isArray(stockData) ? stockData : []) {
     if (!Array.isArray(row)) continue;
     if (String(row[0] ?? "").trim() === targetWkn) {
-      return Number(row[9] ?? 0) || 0;
+      return Number(row[10] ?? 0) || 0;
     }
   }
 
