@@ -33,9 +33,16 @@ export default {
   input: "src/index.ts",
   output: {
     file: "dist/Code.js",
-    format: "iife", // Immediately Invoked Function Expression for global exposure
+    format: "iife",
     name: "App",
     footer: generateGasFooter(exposedFunctions),
   },
-  plugins: [resolve(), commonjs(), typescript({ tsconfig: "./tsconfig.json" })],
+  plugins: [
+    resolve(),
+    commonjs(),
+    typescript({
+      tsconfig: "./tsconfig.json",
+      target: "ES2019", // <--- Overrides ES2022 for the bundle output
+    }),
+  ],
 };
