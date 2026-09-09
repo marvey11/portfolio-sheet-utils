@@ -27,7 +27,7 @@ The main Google Apps Script entrypoint is `src/main.ts`, which exposes:
 
 - `GET_FIFO_POSITIONS(transactions, stocksImport)`
   - `transactions`: `[date, wkn, type, shares, price, fees, total]`
-  - `stocksImport`: `[WKN, ..., name, ..., currentPrice]` (stock name is expected at column D and price at column J)
+  - `stocksImport`: `[WKN, ..., name, ..., currentPrice]` (stock name is expected at column D and price at column K)
 
 - `GET_REALIZED_GAINS(transactions)`
   - `transactions`: `[date, wkn, type, shares, price, fees, total]`
@@ -38,4 +38,4 @@ The main Google Apps Script entrypoint is `src/main.ts`, which exposes:
   - `dividends`: `[date, wkn, ..., net payout]`
   - `stocksImport`: `[WKN, ..., stockName, ..., currentPrice]`
 
-The implementation logic lives in `src/portfolio.ts` for easier testing and maintenance.
+The implementation logic lives in `src/main.ts` for easier testing and maintenance.

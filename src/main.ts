@@ -5,21 +5,24 @@
  */
 
 type SheetRow = readonly unknown[];
-type SheetRange = ReadonlyArray<SheetRow>;
+type SheetRange = readonly SheetRow[];
 
-type PositionLot = {
+interface PositionLot {
   qty: number;
   cost: number;
-};
+}
 
-type PositionData = {
+interface PositionData {
   activeShares: number;
   costBasis: number;
   lots: PositionLot[];
-};
+}
 
 const EPSILON = Number.EPSILON;
 const SMALL_THRESHOLD = 0.000001;
+
+const sheetText = (value: unknown): string =>
+  typeof value === "string" || typeof value === "number" ? String(value) : "";
 
 /**
  * Returns the current open FIFO positions for each stock in the transaction history.
@@ -40,13 +43,10 @@ const getFifoPositions = (
   const result: (string | number)[][] = [];
   const nameMap: Record<string, string> = {};
 
-  if (Array.isArray(stockData)) {
-    for (const row of stockData) {
-      if (!Array.isArray(row)) continue;
-      const wkn = String(row[0] ?? "").trim();
-      const name = row[3] ?? "";
-      if (wkn) nameMap[wkn] = String(name);
-    }
+  for (const row of stockData) {
+    const wkn = sheetText(row[0]).trim();
+    const name = sheetText(row[3]);
+    if (wkn) nameMap[wkn] = name;
   }
 
   for (const [wkn, data] of Object.entries(positions)) {
@@ -72,34 +72,30 @@ const getFifoPositions = (
  */
 const getRealizedGains = (transactions: SheetRange): (string | number)[][] => {
   const realizedList: (string | number)[][] = [];
-  const fifoMap: Record<string, Array<{ qty: number; price: number }>> = {};
+  const fifoMap: Record<string, { qty: number; price: number }[]> = {};
 
-  for (const transaction of Array.isArray(transactions) ? transactions : []) {
-    if (!Array.isArray(transaction)) continue;
-
+  for (const transaction of transactions) {
     const [date, rawWkn, rawType, shares, price, fees] = transaction;
     if (rawWkn == null || rawType == null) continue;
 
-    const wkn = String(rawWkn).trim().toUpperCase();
-    const type = String(rawType).trim().toUpperCase();
+    const wkn = sheetText(rawWkn).trim().toUpperCase();
+    const type = sheetText(rawType).trim().toUpperCase();
     const qty = Number(shares ?? 0);
     const px = Number(price ?? 0);
     const fee = Number(fees ?? 0);
 
     if (!Number.isFinite(qty) || qty === 0) continue;
 
-    if (!fifoMap[wkn]) {
-      fifoMap[wkn] = [];
-    }
+    const lots = (fifoMap[wkn] ??= []);
 
     if (type === "BUY") {
       const costPerShare = (px * qty + fee) / qty;
-      fifoMap[wkn].push({ qty, price: costPerShare });
+      lots.push({ qty, price: costPerShare });
     } else if (type === "SPLIT") {
-      const totalOldShares = fifoMap[wkn].reduce((acc, lot) => acc + lot.qty, 0);
+      const totalOldShares = lots.reduce((acc, lot) => acc + lot.qty, 0);
       if (totalOldShares > 0) {
         const ratio = qty / totalOldShares;
-        fifoMap[wkn].forEach((lot) => {
+        lots.forEach((lot) => {
           lot.qty *= ratio;
           lot.price /= ratio;
         });
@@ -108,12 +104,12 @@ const getRealizedGains = (transactions: SheetRange): (string | number)[][] => {
       let remainingToSell = qty;
       let costOfSoldShares = 0;
 
-      while (remainingToSell > SMALL_THRESHOLD && fifoMap[wkn].length > 0) {
-        const currentLot = fifoMap[wkn][0];
+      while (remainingToSell > SMALL_THRESHOLD && lots.length > 0) {
+        const currentLot = lots[0];
         if (currentLot.qty <= remainingToSell) {
           costOfSoldShares += currentLot.qty * currentLot.price;
           remainingToSell -= currentLot.qty;
-          fifoMap[wkn].shift();
+          lots.shift();
         } else {
           costOfSoldShares += remainingToSell * currentLot.price;
           currentLot.qty -= remainingToSell;
@@ -126,7 +122,11 @@ const getRealizedGains = (transactions: SheetRange): (string | number)[][] => {
       const returnPct = costOfSoldShares > 0 ? realizedPnL / costOfSoldShares : 0;
 
       realizedList.push([
-        date ?? "",
+        date instanceof Date
+          ? date.toISOString()
+          : typeof date === "string" || typeof date === "number"
+            ? date
+            : "",
         wkn,
         qty,
         costOfSoldShares,
@@ -150,25 +150,21 @@ const getRealizedGains = (transactions: SheetRange): (string | number)[][] => {
  * @returns The annualized XIRR rate as a number, or the string "#N/A" when the calculation fails.
  */
 const getPositionXirr = (
-  wknFilter: string | "TOTAL",
+  wknFilter: string,
   transactions: SheetRange,
   dividends: SheetRange,
   stockData: SheetRange
 ): number | string => {
   const dates: Date[] = [];
   const amounts: number[] = [];
-  const targetWkn = String(wknFilter ?? "")
-    .trim()
-    .toUpperCase();
+  const targetWkn = wknFilter.trim().toUpperCase();
 
-  for (const transaction of Array.isArray(transactions) ? transactions : []) {
-    if (!Array.isArray(transaction)) continue;
-
+  for (const transaction of transactions) {
     const [date, rawWkn, rawType, , , , total] = transaction;
     if (rawWkn == null || rawType == null) continue;
 
-    const wkn = String(rawWkn).trim();
-    const type = String(rawType).trim().toUpperCase();
+    const wkn = sheetText(rawWkn).trim();
+    const type = sheetText(rawType).trim().toUpperCase();
     const parsedDate = parseSheetDate(date);
     const netVal = Number(total ?? 0);
 
@@ -184,13 +180,11 @@ const getPositionXirr = (
     }
   }
 
-  for (const dividendRow of Array.isArray(dividends) ? dividends : []) {
-    if (!Array.isArray(dividendRow)) continue;
-
+  for (const dividendRow of dividends) {
     const [dividendDate, rawWkn] = dividendRow;
     if (rawWkn == null) continue;
 
-    const wkn = String(rawWkn).trim();
+    const wkn = sheetText(rawWkn).trim();
     const payout = Number(dividendRow[9] ?? 0);
     const parsedDate = parseSheetDate(dividendDate);
 
@@ -217,8 +211,8 @@ const getPositionXirr = (
       amounts.push(totalMarketVal);
     }
   } else {
-    const pos = fifoData[targetWkn];
-    if (pos && pos.activeShares > SMALL_THRESHOLD) {
+    const pos = Object.hasOwn(fifoData, targetWkn) ? fifoData[targetWkn] : undefined;
+    if (pos !== undefined && pos.activeShares > SMALL_THRESHOLD) {
       const curPx = getPriceFromImport(targetWkn, stockData);
       dates.push(now);
       amounts.push(pos.activeShares * curPx);
@@ -243,25 +237,19 @@ const getPositionXirr = (
 const processTransactionsFIFO = (transactions: SheetRange): Record<string, PositionData> => {
   const positions: Record<string, PositionData> = {};
 
-  for (const transaction of Array.isArray(transactions) ? transactions : []) {
-    if (!Array.isArray(transaction)) continue;
-
+  for (const transaction of transactions) {
     const [, rawWkn, rawType, shares, price, fees] = transaction;
     if (rawWkn == null || rawType == null) continue;
 
-    const wkn = String(rawWkn).trim();
-    const type = String(rawType).trim().toUpperCase();
+    const wkn = sheetText(rawWkn).trim();
+    const type = sheetText(rawType).trim().toUpperCase();
     const qty = Number(shares ?? 0);
     const px = Number(price ?? 0);
     const fee = Number(fees ?? 0);
 
     if (!Number.isFinite(qty) || qty === 0) continue;
 
-    if (!positions[wkn]) {
-      positions[wkn] = { activeShares: 0, costBasis: 0, lots: [] };
-    }
-
-    const pos = positions[wkn];
+    const pos = (positions[wkn] ??= { activeShares: 0, costBasis: 0, lots: [] });
 
     if (type === "BUY") {
       const totalCost = qty * px + fee;
@@ -315,11 +303,10 @@ const processTransactionsFIFO = (transactions: SheetRange): Record<string, Posit
  * @returns The parsed current price, or 0 when the price cannot be found or parsed.
  */
 const getPriceFromImport = (wkn: string, stockData: SheetRange): number => {
-  const targetWkn = String(wkn).trim();
+  const targetWkn = wkn.trim();
 
-  for (const row of Array.isArray(stockData) ? stockData : []) {
-    if (!Array.isArray(row)) continue;
-    if (String(row[0] ?? "").trim() === targetWkn) {
+  for (const row of stockData) {
+    if (sheetText(row[0]).trim() === targetWkn) {
       return Number(row[10] ?? 0) || 0;
     }
   }
@@ -367,7 +354,9 @@ const calculateXIRR = (values: number[], dates: Date[]): number => {
  * @returns A Date when parsing succeeds, otherwise null.
  */
 const parseSheetDate = (value: unknown): Date | null => {
-  const date = value instanceof Date ? value : new Date(String(value ?? ""));
+  const dateValue =
+    value instanceof Date || typeof value === "string" || typeof value === "number" ? value : "";
+  const date = value instanceof Date ? value : new Date(dateValue);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 

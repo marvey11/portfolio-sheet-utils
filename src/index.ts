@@ -12,7 +12,7 @@ function GET_REALIZED_GAINS(transactions: SheetRange): (string | number)[][] {
 }
 
 function GET_POSITION_XIRR(
-  wknFilter: string | "TOTAL",
+  wknFilter: string,
   transactions: SheetRange,
   dividends: SheetRange,
   stockData: SheetRange
