@@ -5,9 +5,21 @@ updates:
     schedule:
       interval: "weekly"
     groups:
+      vitest-packages:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+
+      typescript-eslint-packages:
+        patterns:
+          - "@typescript-eslint/*"
+
       dev-dependencies:
         dependency-type: "development"
-        # Optional: restrict to minor/patch updates to avoid unexpected major breaking changes in one PR
+        exclude-patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@typescript-eslint/*"
         update-types:
           - "minor"
           - "patch"
@@ -15,6 +27,10 @@ updates:
       # Optional: create a separate group for production dependencies
       prod-dependencies:
         dependency-type: "production"
+        exclude-patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@typescript-eslint/*"
         update-types:
           - "minor"
           - "patch"

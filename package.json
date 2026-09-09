@@ -11,6 +11,7 @@
   "license": "MIT",
   "main": "dist/main.js",
   "scripts": {
+    "check:all": "npm run build && npm run lint && npm run test",
     "copy-manifest": "node copy-manifest.mjs",
     "build": "rollup -c && npm run copy-manifest",
     "format": "prettier --write \"src/**/*.{ts,js,json,md}\" \"*.md\"",
@@ -35,7 +36,7 @@
     "@types/node": "^26.4.0",
     "@typescript-eslint/eslint-plugin": "^8.68.0",
     "@typescript-eslint/parser": "^8.68.0",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.0.0",
