@@ -62,35 +62,52 @@ describe("portfolio utilities", () => {
     expect(result as number).toBeGreaterThan(0);
   });
 
-  it("getImpliedGrowthRate solves a 10-year reverse DCF", () => {
-    const result = getImpliedGrowthRate(100, 10, 0.1, 0.02, 1, 0, 0);
+  describe("getImpliedGrowthRate", () => {
+    it("solves a 10-year reverse DCF", () => {
+      const result = getImpliedGrowthRate(100, 10, 0.1, 0.02, 1, 0, 0);
 
-    expect(result).toBeCloseTo(-0.012366249464641932, 10);
-  });
+      expect(result).toBeCloseTo(-0.014317624270915985, 10);
+    });
 
-  it("getImpliedGrowthRate applies cash and debt adjustments", () => {
-    const withNetCash = getImpliedGrowthRate(100, 10, 0.1, 0.02, 1, 20, 10);
-    const result = getImpliedGrowthRate(100, 10, 0.1, 0.02, 1, 0, 0);
+    it("applies cash and debt adjustments", () => {
+      const withNetCash = getImpliedGrowthRate(100, 10, 0.1, 0.02, 1, 20, 10);
+      const baseline = getImpliedGrowthRate(100, 10, 0.1, 0.02, 1, 0, 0);
 
-    expect(withNetCash).toBeLessThan(result);
-  });
+      // Higher net cash lowers the implied FCF growth needed to justify the share price.
+      expect(withNetCash).toBeLessThan(baseline);
+    });
 
-  it("getImpliedGrowthRate rejects invalid inputs", () => {
-    expect(() => getImpliedGrowthRate(100, 10, 0.1, 0.1, 1, 0, 0)).toThrow(
-      "Invalid reverse DCF parameters."
-    );
-    expect(() => getImpliedGrowthRate(0, 10, 0.1, 0.02, 1, 0, 0)).toThrow(
-      "Invalid reverse DCF parameters."
-    );
-    expect(() => getImpliedGrowthRate(100, 10, Number.NaN, 0.02, 1, 0, 0)).toThrow(
-      "Invalid reverse DCF parameters."
-    );
-  });
+    it("rejects invalid inputs", () => {
+      expect(() => getImpliedGrowthRate(100, 10, 0.1, 0.1, 1, 0, 0)).toThrow(
+        "Invalid reverse DCF parameters."
+      );
+      expect(() => getImpliedGrowthRate(0, 10, 0.1, 0.02, 1, 0, 0)).toThrow(
+        "Invalid reverse DCF parameters."
+      );
+      expect(() => getImpliedGrowthRate(100, 10, Number.NaN, 0.02, 1, 0, 0)).toThrow(
+        "Invalid reverse DCF parameters."
+      );
+    });
 
-  it("getImpliedGrowthRate throws when no solution is in range", () => {
-    expect(() => getImpliedGrowthRate(0.01, 10, 0.1, 0.02, 1, 0, 0)).toThrow(
-      "No implied growth rate exists within -50% to 100%"
-    );
+    it("throws when no solution is in range", () => {
+      expect(() =>
+        getImpliedGrowthRate(0.01, 10, 0.1, 0.02, 1, 0, 0, {
+          minGrowthRate: -0.5,
+          maxGrowthRate: 1.0,
+        })
+      ).toThrow("No implied growth rate found within [-50.0%, 100.0%].");
+    });
+
+    it("respects custom forecast years and growth bounds", () => {
+      const fiveYear = getImpliedGrowthRate(120, 10, 0.09, 0.025, 1, 5, 15, {
+        forecastYears: 5,
+        minGrowthRate: -0.5,
+        maxGrowthRate: 1.5,
+      });
+
+      expect(fiveYear).toBeGreaterThan(-0.5);
+      expect(fiveYear).toBeLessThan(1.5);
+    });
   });
 
   it("parseSheetDate returns null for invalid values", () => {

@@ -20,10 +20,6 @@ interface PositionData {
 
 const EPSILON = Number.EPSILON;
 const SMALL_THRESHOLD = 0.000001;
-const IMPLIED_GROWTH_MIN = -0.5;
-const IMPLIED_GROWTH_MAX = 1.0;
-const IMPLIED_GROWTH_MAX_ITERATIONS = 200;
-const IMPLIED_GROWTH_RATE_THRESHOLD = 1e-12;
 
 const sheetText = (value: unknown): string =>
   typeof value === "string" || typeof value === "number" ? String(value) : "";
@@ -318,6 +314,15 @@ const getPriceFromImport = (wkn: string, stockData: SheetRange): number => {
   return 0;
 };
 
+export interface ReverseDcfOptions {
+  forecastYears?: number;
+  minGrowthRate?: number;
+  maxGrowthRate?: number;
+  /** Maximum allowed width of the growth-rate bracket (in decimal form, e.g. 1e-7). */
+  rateTolerance?: number;
+  maxIterations?: number;
+}
+
 /**
  * Calculates the constant short-term growth rate that equates a 10-year DCF
  * equity value with the current market capitalization.
@@ -332,16 +337,25 @@ const getPriceFromImport = (wkn: string, stockData: SheetRange): number => {
  * @returns The implied 10-year growth rate.
  * @throws When inputs are invalid or no solution exists within -50% to 100%.
  */
-const getImpliedGrowthRate = (
+function getImpliedGrowthRate(
   sharePrice: number,
   fcfBase: number,
   discountRate: number,
   terminalGrowthRate: number,
   sharesOutstanding: number,
   totalCash: number,
-  totalDebt: number
-): number => {
-  const inputs = [
+  totalDebt: number,
+  options: ReverseDcfOptions = {}
+): number {
+  const {
+    forecastYears = 10,
+    minGrowthRate = -0.5,
+    maxGrowthRate = 2.0,
+    rateTolerance = 1e-7,
+    maxIterations = 100,
+  } = options;
+
+  const numericInputs = [
     sharePrice,
     fcfBase,
     discountRate,
@@ -349,73 +363,106 @@ const getImpliedGrowthRate = (
     sharesOutstanding,
     totalCash,
     totalDebt,
+    forecastYears,
+    minGrowthRate,
+    maxGrowthRate,
+    rateTolerance,
   ];
 
   if (
-    inputs.some((value) => !Number.isFinite(value)) ||
+    numericInputs.some((value) => !Number.isFinite(value)) ||
     sharePrice <= 0 ||
     fcfBase <= 0 ||
     discountRate <= 0 ||
-    terminalGrowthRate >= discountRate ||
+    discountRate <= terminalGrowthRate ||
     sharesOutstanding <= 0 ||
     totalCash < 0 ||
-    totalDebt < 0
+    totalDebt < 0 ||
+    !Number.isInteger(forecastYears) ||
+    forecastYears < 1 ||
+    minGrowthRate >= maxGrowthRate ||
+    rateTolerance <= 0
   ) {
     throw new Error("Invalid reverse DCF parameters.");
   }
 
   const targetEquityValue = sharePrice * sharesOutstanding;
+  const equityAdjustment = totalCash - totalDebt;
 
-  const calculateEquityValue = (growthRate: number): number => {
-    let presentValue = 0;
-    let fcf = fcfBase;
+  const calculateEquityValue = (shortTermGrowth: number): number => {
+    let pvExplicitFcf = 0;
+    let currentFcf = fcfBase;
+    let discountFactor = 1;
+    const growthMultiplier = 1 + shortTermGrowth;
+    const discountMultiplier = 1 + discountRate;
 
-    for (let year = 1; year <= 10; year++) {
-      fcf *= 1 + growthRate;
-      presentValue += fcf / Math.pow(1 + discountRate, year);
+    for (let year = 1; year <= forecastYears; year++) {
+      currentFcf *= growthMultiplier;
+      discountFactor *= discountMultiplier;
+      pvExplicitFcf += currentFcf / discountFactor;
     }
 
-    const year11Fcf = fcf * (1 + growthRate);
-    const terminalValue = year11Fcf / (discountRate - terminalGrowthRate);
-    presentValue += terminalValue / Math.pow(1 + discountRate, 10);
+    // Year (T + 1) FCF grows at the terminal growth rate from Year T's FCF.
+    const terminalValue =
+      (currentFcf * (1 + terminalGrowthRate)) / (discountRate - terminalGrowthRate);
+    const pvTerminalValue = terminalValue / discountFactor;
 
-    return presentValue + totalCash - totalDebt;
+    return pvExplicitFcf + pvTerminalValue + equityAdjustment;
   };
 
-  let lowerBound = IMPLIED_GROWTH_MIN;
-  let upperBound = IMPLIED_GROWTH_MAX;
-  let lowerDifference = calculateEquityValue(lowerBound) - targetEquityValue;
-  const upperDifference = calculateEquityValue(upperBound) - targetEquityValue;
+  let low = minGrowthRate;
+  let high = maxGrowthRate;
 
-  if (
-    !Number.isFinite(lowerDifference) ||
-    !Number.isFinite(upperDifference) ||
-    lowerDifference * upperDifference > 0
-  ) {
-    throw new Error("No implied growth rate exists within -50% to 100%.");
+  let lowDiff = calculateEquityValue(low) - targetEquityValue;
+  const highDiff = calculateEquityValue(high) - targetEquityValue;
+
+  if (!Number.isFinite(lowDiff) || !Number.isFinite(highDiff)) {
+    throw new Error("Non-finite equity valuation at bisection bounds.");
   }
 
-  for (let iteration = 0; iteration < IMPLIED_GROWTH_MAX_ITERATIONS; iteration++) {
-    const midpoint = (lowerBound + upperBound) / 2;
-    const midpointDifference = calculateEquityValue(midpoint) - targetEquityValue;
+  if (Math.abs(lowDiff) === 0) {
+    return low;
+  }
+  if (Math.abs(highDiff) === 0) {
+    return high;
+  }
 
-    if (
-      Math.abs(midpointDifference) < IMPLIED_GROWTH_RATE_THRESHOLD ||
-      upperBound - lowerBound < IMPLIED_GROWTH_RATE_THRESHOLD
-    ) {
-      return midpoint;
+  // Since equity value is strictly increasing in short-term growth (for valid
+  // positive FCFs and r > g_terminal), a sign change guarantees a unique root.
+  if (lowDiff * highDiff > 0) {
+    throw new Error(
+      `No implied growth rate found within [${(minGrowthRate * 100).toFixed(1)}%, ${(maxGrowthRate * 100).toFixed(1)}%].`
+    );
+  }
+
+  for (let i = 0; i < maxIterations; i++) {
+    const mid = (low + high) / 2;
+
+    if (high - low < rateTolerance) {
+      return mid;
     }
 
-    if (lowerDifference * midpointDifference <= 0) {
-      upperBound = midpoint;
+    const midDiff = calculateEquityValue(mid) - targetEquityValue;
+
+    if (!Number.isFinite(midDiff)) {
+      throw new Error("Non-finite equity valuation during bisection.");
+    }
+
+    if (midDiff === 0) {
+      return mid;
+    }
+
+    if (lowDiff * midDiff < 0) {
+      high = mid;
+      // highDiff = midDiff;
     } else {
-      lowerBound = midpoint;
-      lowerDifference = midpointDifference;
+      low = mid;
+      lowDiff = midDiff;
     }
   }
 
-  throw new Error("Unable to determine an implied growth rate.");
-};
+  return (low + high) / 2;
+}
 
 /**
  * Solves for annualized XIRR using the Newton-Raphson method.
