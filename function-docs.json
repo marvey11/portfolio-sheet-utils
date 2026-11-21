@@ -57,5 +57,48 @@
     ],
     "returnType": "number | string",
     "returnDesc": "The annualized XIRR rate as a number, or the string '#N/A' when the calculation fails."
+  },
+  {
+    "name": "GET_IMPLIED_GROWTH_RATE",
+    "description": "Calculates the constant short-term growth rate that makes a 10-year discounted cash flow valuation equal to the current market price.",
+    "params": [
+      {
+        "name": "sharePrice",
+        "description": "Current market price per share.",
+        "type": "number"
+      },
+      {
+        "name": "fcfBase",
+        "description": "Most recent free cash flow for Year 0.",
+        "type": "number"
+      },
+      {
+        "name": "discountRate",
+        "description": "Fixed annual discount rate, as a decimal such as 0.10.",
+        "type": "number"
+      },
+      {
+        "name": "terminalGrowthRate",
+        "description": "Fixed perpetual terminal growth rate, as a decimal such as 0.02.",
+        "type": "number"
+      },
+      {
+        "name": "sharesOutstanding",
+        "description": "Total shares outstanding.",
+        "type": "number"
+      },
+      {
+        "name": "totalCash",
+        "description": "Total cash and cash equivalents.",
+        "type": "number"
+      },
+      {
+        "name": "totalDebt",
+        "description": "Total debt.",
+        "type": "number"
+      }
+    ],
+    "returnType": "number | string",
+    "returnDesc": "The implied annual growth rate as a decimal, or '#NUM!' when inputs are invalid or no solution exists within -50% to 100%."
   }
 ]

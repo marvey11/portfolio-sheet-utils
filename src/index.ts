@@ -1,4 +1,10 @@
-import { getFifoPositions, SheetRange, getRealizedGains, getPositionXirr } from "./main";
+import {
+  getFifoPositions,
+  SheetRange,
+  getRealizedGains,
+  getPositionXirr,
+  getImpliedGrowthRate,
+} from "./main";
 
 function GET_FIFO_POSITIONS(
   transactions: SheetRange,
@@ -20,7 +26,28 @@ function GET_POSITION_XIRR(
   return getPositionXirr(wknFilter, transactions, dividends, stockData);
 }
 
+function GET_IMPLIED_GROWTH_RATE(
+  sharePrice: number,
+  fcfBase: number,
+  discountRate: number,
+  terminalGrowthRate: number,
+  sharesOutstanding: number,
+  totalCash: number,
+  totalDebt: number
+): number | string {
+  return getImpliedGrowthRate(
+    sharePrice,
+    fcfBase,
+    discountRate,
+    terminalGrowthRate,
+    sharesOutstanding,
+    totalCash,
+    totalDebt
+  );
+}
+
 const g = globalThis as Record<string, unknown>;
 g.GET_FIFO_POSITIONS = GET_FIFO_POSITIONS;
 g.GET_REALIZED_GAINS = GET_REALIZED_GAINS;
 g.GET_POSITION_XIRR = GET_POSITION_XIRR;
+g.GET_IMPLIED_GROWTH_RATE = GET_IMPLIED_GROWTH_RATE;

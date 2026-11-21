@@ -30,3 +30,6 @@ pnpm-debug.log*
 
 # MacOS files
 .DS_Store
+
+.prompts
+
