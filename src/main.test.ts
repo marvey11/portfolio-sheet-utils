@@ -2,6 +2,7 @@ import {
   getFifoPositions,
   getRealizedGains,
   getPositionXirr,
+  getImpliedGrowthRate,
   parseSheetDate,
   processTransactionsFIFO,
 } from "./main";
@@ -59,6 +60,32 @@ describe("portfolio utilities", () => {
     const result = getPositionXirr("ABC", transactions, dividends, stocksImport);
     expect(typeof result).toBe("number");
     expect(result as number).toBeGreaterThan(0);
+  });
+
+  it("getImpliedGrowthRate solves a 10-year reverse DCF", () => {
+    const result = getImpliedGrowthRate(100, 10, 0.1, 0.02, 1, 0, 0);
+
+    expect(typeof result).toBe("number");
+    expect(result as number).toBeCloseTo(-0.012366249464641932, 10);
+  });
+
+  it("getImpliedGrowthRate applies cash and debt adjustments", () => {
+    const withNetCash = getImpliedGrowthRate(100, 10, 0.1, 0.02, 1, 20, 10);
+    const result = getImpliedGrowthRate(100, 10, 0.1, 0.02, 1, 0, 0);
+
+    expect(typeof withNetCash).toBe("number");
+    expect(typeof result).toBe("number");
+    expect(withNetCash as number).toBeLessThan(result as number);
+  });
+
+  it("getImpliedGrowthRate rejects invalid inputs", () => {
+    expect(getImpliedGrowthRate(100, 10, 0.1, 0.1, 1, 0, 0)).toBe("#NUM!");
+    expect(getImpliedGrowthRate(0, 10, 0.1, 0.02, 1, 0, 0)).toBe("#NUM!");
+    expect(getImpliedGrowthRate(100, 10, Number.NaN, 0.02, 1, 0, 0)).toBe("#NUM!");
+  });
+
+  it("getImpliedGrowthRate returns #NUM! when no solution is in range", () => {
+    expect(getImpliedGrowthRate(0.01, 10, 0.1, 0.02, 1, 0, 0)).toBe("#NUM!");
   });
 
   it("parseSheetDate returns null for invalid values", () => {

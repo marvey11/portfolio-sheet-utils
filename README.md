@@ -1,13 +1,15 @@
 # portfolio-sheet-utils
 
-A Google Apps Script utility library for portfolio analysis, including FIFO position tracking, realized gain reporting, and XIRR/MWRR calculations.
+A Google Apps Script utility library for portfolio analysis, including FIFO position tracking, realized gain reporting, XIRR/MWRR calculations, and reverse DCF analysis.
 
 ## Project scripts
 
-- `npm run build` — compile TypeScript and copy `src/appsscript.json` into `dist/`
+- `npm run build` — compile TypeScript and copy `appsscript.json` into `dist/`
 - `npm run test` — run Vitest tests once
 - `npm run test:watch` — run Vitest in watch mode
 - `npm run coverage` — run tests and generate coverage reports in `coverage/`
+- `npm run check:all` — build, lint, and test the project
+- `npm run format:check` — verify source and Markdown formatting
 - `npm run push` — build and push the Apps Script project via `clasp`
 - `npm run pull` — pull the latest Apps Script project from Google Drive
 
@@ -22,6 +24,7 @@ The main Google Apps Script entrypoint is `src/main.ts`, which exposes:
 - `GET_FIFO_POSITIONS`
 - `GET_REALIZED_GAINS`
 - `GET_POSITION_XIRR`
+- `GET_IMPLIED_GROWTH_RATE`
 
 ### Expected inputs
 
@@ -37,5 +40,15 @@ The main Google Apps Script entrypoint is `src/main.ts`, which exposes:
   - `transactions`: `[date, wkn, type, shares, price, fees, total]`
   - `dividends`: `[date, wkn, ..., net payout]`
   - `stocksImport`: `[WKN, ..., stockName, ..., currentPrice]`
+
+- `GET_IMPLIED_GROWTH_RATE(sharePrice, fcfBase, discountRate, terminalGrowthRate, sharesOutstanding, totalCash, totalDebt)`
+  - `sharePrice`: current market price per share
+  - `fcfBase`: most recent free cash flow for Year 0
+  - `discountRate`: fixed annual discount rate as a decimal, such as `0.10`
+  - `terminalGrowthRate`: fixed perpetual growth rate as a decimal, such as `0.02`
+  - `sharesOutstanding`: total shares outstanding
+  - `totalCash`: total cash and cash equivalents
+  - `totalDebt`: total debt
+  - Returns the implied 10-year annual growth rate as a decimal, or `#NUM!` when inputs are invalid or no solution exists.
 
 The implementation logic lives in `src/main.ts` for easier testing and maintenance.

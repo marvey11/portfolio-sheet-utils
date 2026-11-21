@@ -20,6 +20,10 @@ interface PositionData {
 
 const EPSILON = Number.EPSILON;
 const SMALL_THRESHOLD = 0.000001;
+const IMPLIED_GROWTH_MIN = -0.5;
+const IMPLIED_GROWTH_MAX = 1.0;
+const IMPLIED_GROWTH_MAX_ITERATIONS = 200;
+const IMPLIED_GROWTH_RATE_THRESHOLD = 1e-12;
 
 const sheetText = (value: unknown): string =>
   typeof value === "string" || typeof value === "number" ? String(value) : "";
@@ -315,6 +319,104 @@ const getPriceFromImport = (wkn: string, stockData: SheetRange): number => {
 };
 
 /**
+ * Calculates the constant short-term growth rate that equates a 10-year DCF
+ * equity value with the current market capitalization.
+ *
+ * @param sharePrice - Current market price per share.
+ * @param fcfBase - Most recent free cash flow (Year 0).
+ * @param discountRate - Fixed annual discount rate.
+ * @param terminalGrowthRate - Fixed perpetual growth rate.
+ * @param sharesOutstanding - Total shares outstanding.
+ * @param totalCash - Total cash and cash equivalents.
+ * @param totalDebt - Total debt.
+ * @returns The implied 10-year growth rate, or "#NUM!" when inputs are invalid or no solution exists.
+ */
+const getImpliedGrowthRate = (
+  sharePrice: number,
+  fcfBase: number,
+  discountRate: number,
+  terminalGrowthRate: number,
+  sharesOutstanding: number,
+  totalCash: number,
+  totalDebt: number
+): number | string => {
+  const inputs = [
+    sharePrice,
+    fcfBase,
+    discountRate,
+    terminalGrowthRate,
+    sharesOutstanding,
+    totalCash,
+    totalDebt,
+  ];
+
+  if (
+    inputs.some((value) => !Number.isFinite(value)) ||
+    sharePrice <= 0 ||
+    fcfBase <= 0 ||
+    discountRate <= 0 ||
+    terminalGrowthRate >= discountRate ||
+    sharesOutstanding <= 0 ||
+    totalCash < 0 ||
+    totalDebt < 0
+  ) {
+    return "#NUM!";
+  }
+
+  const targetEquityValue = sharePrice * sharesOutstanding;
+
+  const calculateEquityValue = (growthRate: number): number => {
+    let presentValue = 0;
+    let fcf = fcfBase;
+
+    for (let year = 1; year <= 10; year++) {
+      fcf *= 1 + growthRate;
+      presentValue += fcf / Math.pow(1 + discountRate, year);
+    }
+
+    const year11Fcf = fcf * (1 + growthRate);
+    const terminalValue = year11Fcf / (discountRate - terminalGrowthRate);
+    presentValue += terminalValue / Math.pow(1 + discountRate, 10);
+
+    return presentValue + totalCash - totalDebt;
+  };
+
+  let lowerBound = IMPLIED_GROWTH_MIN;
+  let upperBound = IMPLIED_GROWTH_MAX;
+  let lowerDifference = calculateEquityValue(lowerBound) - targetEquityValue;
+  const upperDifference = calculateEquityValue(upperBound) - targetEquityValue;
+
+  if (
+    !Number.isFinite(lowerDifference) ||
+    !Number.isFinite(upperDifference) ||
+    lowerDifference * upperDifference > 0
+  ) {
+    return "#NUM!";
+  }
+
+  for (let iteration = 0; iteration < IMPLIED_GROWTH_MAX_ITERATIONS; iteration++) {
+    const midpoint = (lowerBound + upperBound) / 2;
+    const midpointDifference = calculateEquityValue(midpoint) - targetEquityValue;
+
+    if (
+      Math.abs(midpointDifference) < IMPLIED_GROWTH_RATE_THRESHOLD ||
+      upperBound - lowerBound < IMPLIED_GROWTH_RATE_THRESHOLD
+    ) {
+      return midpoint;
+    }
+
+    if (lowerDifference * midpointDifference <= 0) {
+      upperBound = midpoint;
+    } else {
+      lowerBound = midpoint;
+      lowerDifference = midpointDifference;
+    }
+  }
+
+  return "#NUM!";
+};
+
+/**
  * Solves for annualized XIRR using the Newton-Raphson method.
  *
  * @param values - Cash flows where negative values are investments and positive values are returns.
@@ -364,6 +466,7 @@ export {
   getFifoPositions,
   getRealizedGains,
   getPositionXirr,
+  getImpliedGrowthRate,
   parseSheetDate,
   processTransactionsFIFO,
 };
