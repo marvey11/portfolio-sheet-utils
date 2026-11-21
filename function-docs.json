@@ -98,7 +98,7 @@
         "type": "number"
       }
     ],
-    "returnType": "number | string",
-    "returnDesc": "The implied annual growth rate as a decimal, or '#NUM!' when inputs are invalid or no solution exists within -50% to 100%."
+    "returnType": "number",
+    "returnDesc": "The implied annual growth rate as a decimal. Invalid inputs or a solution outside -50% to 100% throw an error that IFERROR can catch."
   }
 ]

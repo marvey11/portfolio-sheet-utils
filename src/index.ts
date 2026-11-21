@@ -34,7 +34,7 @@ function GET_IMPLIED_GROWTH_RATE(
   sharesOutstanding: number,
   totalCash: number,
   totalDebt: number
-): number | string {
+): number {
   return getImpliedGrowthRate(
     sharePrice,
     fcfBase,
