@@ -329,7 +329,8 @@ const getPriceFromImport = (wkn: string, stockData: SheetRange): number => {
  * @param sharesOutstanding - Total shares outstanding.
  * @param totalCash - Total cash and cash equivalents.
  * @param totalDebt - Total debt.
- * @returns The implied 10-year growth rate, or "#NUM!" when inputs are invalid or no solution exists.
+ * @returns The implied 10-year growth rate.
+ * @throws When inputs are invalid or no solution exists within -50% to 100%.
  */
 const getImpliedGrowthRate = (
   sharePrice: number,
@@ -339,7 +340,7 @@ const getImpliedGrowthRate = (
   sharesOutstanding: number,
   totalCash: number,
   totalDebt: number
-): number | string => {
+): number => {
   const inputs = [
     sharePrice,
     fcfBase,
@@ -360,7 +361,7 @@ const getImpliedGrowthRate = (
     totalCash < 0 ||
     totalDebt < 0
   ) {
-    return "#NUM!";
+    throw new Error("Invalid reverse DCF parameters.");
   }
 
   const targetEquityValue = sharePrice * sharesOutstanding;
@@ -391,7 +392,7 @@ const getImpliedGrowthRate = (
     !Number.isFinite(upperDifference) ||
     lowerDifference * upperDifference > 0
   ) {
-    return "#NUM!";
+    throw new Error("No implied growth rate exists within -50% to 100%.");
   }
 
   for (let iteration = 0; iteration < IMPLIED_GROWTH_MAX_ITERATIONS; iteration++) {
@@ -413,7 +414,7 @@ const getImpliedGrowthRate = (
     }
   }
 
-  return "#NUM!";
+  throw new Error("Unable to determine an implied growth rate.");
 };
 
 /**
