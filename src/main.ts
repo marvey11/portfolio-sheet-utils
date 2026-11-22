@@ -335,7 +335,7 @@ export interface ReverseDcfOptions {
  * @param totalCash - Total cash and cash equivalents.
  * @param totalDebt - Total debt.
  * @returns The implied 10-year growth rate.
- * @throws When inputs are invalid or no solution exists within -50% to 100%.
+ * @throws When inputs are invalid or no solution exists within -50% to 200%.
  */
 function getImpliedGrowthRate(
   sharePrice: number,
