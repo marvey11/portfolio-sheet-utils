@@ -314,7 +314,93 @@ const getPriceFromImport = (wkn: string, stockData: SheetRange): number => {
   return 0;
 };
 
-export interface ReverseDcfOptions {
+/**
+ * Computes total equity value using a two-stage DCF model:
+ * explicit compounding at `shortTermGrowthRate` for `forecastYears`,
+ * followed by a Gordon Growth terminal value at `terminalGrowthRate`.
+ */
+function calculateDcfEquityValue(
+  fcfBase: number,
+  shortTermGrowthRate: number,
+  discountRate: number,
+  terminalGrowthRate: number,
+  totalCash: number,
+  totalDebt: number,
+  forecastYears = 10
+): number {
+  const numericInputs = [
+    fcfBase,
+    shortTermGrowthRate,
+    discountRate,
+    terminalGrowthRate,
+    totalCash,
+    totalDebt,
+    forecastYears,
+  ];
+
+  if (
+    numericInputs.some((value) => !Number.isFinite(value)) ||
+    discountRate <= 0 ||
+    discountRate <= terminalGrowthRate ||
+    shortTermGrowthRate <= -1 ||
+    totalCash < 0 ||
+    totalDebt < 0 ||
+    !Number.isInteger(forecastYears) ||
+    forecastYears < 1
+  ) {
+    throw new Error("Invalid DCF parameters.");
+  }
+
+  let pvExplicitFcf = 0;
+  let currentFcf = fcfBase;
+  let discountFactor = 1;
+  const growthMultiplier = 1 + shortTermGrowthRate;
+  const discountMultiplier = 1 + discountRate;
+
+  for (let year = 1; year <= forecastYears; year++) {
+    currentFcf *= growthMultiplier;
+    discountFactor *= discountMultiplier;
+    pvExplicitFcf += currentFcf / discountFactor;
+  }
+
+  const terminalValue =
+    (currentFcf * (1 + terminalGrowthRate)) / (discountRate - terminalGrowthRate);
+  const pvTerminalValue = terminalValue / discountFactor;
+
+  return pvExplicitFcf + pvTerminalValue + totalCash - totalDebt;
+}
+
+/**
+ * Computes intrinsic value per share from a two-stage DCF model.
+ */
+function calculateIntrinsicSharePrice(
+  fcfBase: number,
+  shortTermGrowthRate: number,
+  discountRate: number,
+  terminalGrowthRate: number,
+  sharesOutstanding: number,
+  totalCash: number,
+  totalDebt: number,
+  forecastYears = 10
+): number {
+  if (!Number.isFinite(sharesOutstanding) || sharesOutstanding <= 0) {
+    throw new Error("Invalid DCF parameters.");
+  }
+
+  const equityValue = calculateDcfEquityValue(
+    fcfBase,
+    shortTermGrowthRate,
+    discountRate,
+    terminalGrowthRate,
+    totalCash,
+    totalDebt,
+    forecastYears
+  );
+
+  return equityValue / sharesOutstanding;
+}
+
+interface ReverseDcfOptions {
   forecastYears?: number;
   minGrowthRate?: number;
   maxGrowthRate?: number;
@@ -381,54 +467,38 @@ function getImpliedGrowthRate(
     !Number.isInteger(forecastYears) ||
     forecastYears < 1 ||
     minGrowthRate >= maxGrowthRate ||
+    minGrowthRate <= -1 ||
     rateTolerance <= 0
   ) {
     throw new Error("Invalid reverse DCF parameters.");
   }
 
   const targetEquityValue = sharePrice * sharesOutstanding;
-  const equityAdjustment = totalCash - totalDebt;
 
-  const calculateEquityValue = (shortTermGrowth: number): number => {
-    let pvExplicitFcf = 0;
-    let currentFcf = fcfBase;
-    let discountFactor = 1;
-    const growthMultiplier = 1 + shortTermGrowth;
-    const discountMultiplier = 1 + discountRate;
-
-    for (let year = 1; year <= forecastYears; year++) {
-      currentFcf *= growthMultiplier;
-      discountFactor *= discountMultiplier;
-      pvExplicitFcf += currentFcf / discountFactor;
-    }
-
-    // Year (T + 1) FCF grows at the terminal growth rate from Year T's FCF.
-    const terminalValue =
-      (currentFcf * (1 + terminalGrowthRate)) / (discountRate - terminalGrowthRate);
-    const pvTerminalValue = terminalValue / discountFactor;
-
-    return pvExplicitFcf + pvTerminalValue + equityAdjustment;
-  };
+  const evaluateDifference = (growthRate: number): number =>
+    calculateDcfEquityValue(
+      fcfBase,
+      growthRate,
+      discountRate,
+      terminalGrowthRate,
+      totalCash,
+      totalDebt,
+      forecastYears
+    ) - targetEquityValue;
 
   let low = minGrowthRate;
   let high = maxGrowthRate;
 
-  let lowDiff = calculateEquityValue(low) - targetEquityValue;
-  const highDiff = calculateEquityValue(high) - targetEquityValue;
+  let lowDiff = evaluateDifference(low);
+  const highDiff = evaluateDifference(high);
 
   if (!Number.isFinite(lowDiff) || !Number.isFinite(highDiff)) {
     throw new Error("Non-finite equity valuation at bisection bounds.");
   }
 
-  if (Math.abs(lowDiff) === 0) {
-    return low;
-  }
-  if (Math.abs(highDiff) === 0) {
-    return high;
-  }
+  if (lowDiff === 0) return low;
+  if (highDiff === 0) return high;
 
-  // Since equity value is strictly increasing in short-term growth (for valid
-  // positive FCFs and r > g_terminal), a sign change guarantees a unique root.
   if (lowDiff * highDiff > 0) {
     throw new Error(
       `No implied growth rate found within [${(minGrowthRate * 100).toFixed(1)}%, ${(maxGrowthRate * 100).toFixed(1)}%].`
@@ -442,7 +512,7 @@ function getImpliedGrowthRate(
       return mid;
     }
 
-    const midDiff = calculateEquityValue(mid) - targetEquityValue;
+    const midDiff = evaluateDifference(mid);
 
     if (!Number.isFinite(midDiff)) {
       throw new Error("Non-finite equity valuation during bisection.");
@@ -454,7 +524,6 @@ function getImpliedGrowthRate(
 
     if (lowDiff * midDiff < 0) {
       high = mid;
-      // highDiff = midDiff;
     } else {
       low = mid;
       lowDiff = midDiff;
@@ -511,11 +580,13 @@ const parseSheetDate = (value: unknown): Date | null => {
 };
 
 export {
+  calculateDcfEquityValue,
+  calculateIntrinsicSharePrice,
   getFifoPositions,
-  getRealizedGains,
-  getPositionXirr,
   getImpliedGrowthRate,
+  getPositionXirr,
+  getRealizedGains,
   parseSheetDate,
   processTransactionsFIFO,
 };
-export type { SheetRange, SheetRow };
+export type { SheetRange, SheetRow, ReverseDcfOptions };

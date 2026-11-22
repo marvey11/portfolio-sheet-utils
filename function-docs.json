@@ -1,5 +1,53 @@
 [
   {
+    "name": "DCF_INTRINSIC_PRICE",
+    "description": "Calculates intrinsic value per share using a two-stage discounted cash flow model.",
+    "params": [
+      {
+        "name": "fcfBase",
+        "description": "Most recent free cash flow for Year 0.",
+        "type": "number"
+      },
+      {
+        "name": "shortTermGrowthRate",
+        "description": "Annual free cash flow growth rate during the forecast period, as a decimal.",
+        "type": "number"
+      },
+      {
+        "name": "discountRate",
+        "description": "Annual discount rate, as a decimal.",
+        "type": "number"
+      },
+      {
+        "name": "terminalGrowthRate",
+        "description": "Perpetual free cash flow growth rate after the forecast period, as a decimal.",
+        "type": "number"
+      },
+      {
+        "name": "sharesOutstanding",
+        "description": "Total shares outstanding.",
+        "type": "number"
+      },
+      {
+        "name": "totalCash",
+        "description": "Total cash and cash equivalents.",
+        "type": "number"
+      },
+      {
+        "name": "totalDebt",
+        "description": "Total debt.",
+        "type": "number"
+      },
+      {
+        "name": "forecastYears",
+        "description": "Number of years for the explicit forecast period. Defaults to 10.",
+        "type": "number"
+      }
+    ],
+    "returnType": "number",
+    "returnDesc": "Intrinsic value per share. Invalid parameters throw an error that can be handled with IFERROR."
+  },
+  {
     "name": "GET_REALIZED_GAINS",
     "description": "Computes the realized gain/loss for each sell transaction using FIFO cost basis.",
     "params": [
