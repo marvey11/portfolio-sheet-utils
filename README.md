@@ -50,6 +50,6 @@ The main Google Apps Script entrypoint is `src/main.ts`, which exposes:
   - `totalCash`: total cash and cash equivalents
   - `totalDebt`: total debt
   - Returns the implied 10-year annual growth rate as a decimal.
-  - Throws an actual sheet-visible error when inputs are invalid or no solution exists within `-50%` to `100%`, allowing it to be handled with `IFERROR`.
+  - Throws an actual sheet-visible error when inputs are invalid or no solution exists within `-50%` to `200%`, allowing it to be handled with `IFERROR`.
 
 The implementation logic lives in `src/main.ts` for easier testing and maintenance.

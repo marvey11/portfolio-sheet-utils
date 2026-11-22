@@ -99,6 +99,6 @@
       }
     ],
     "returnType": "number",
-    "returnDesc": "The implied annual growth rate as a decimal. Invalid inputs or a solution outside -50% to 100% throw an error that IFERROR can catch."
+    "returnDesc": "The implied annual growth rate as a decimal. Invalid inputs or a solution outside -50% to 200% throw an error that IFERROR can catch."
   }
 ]
