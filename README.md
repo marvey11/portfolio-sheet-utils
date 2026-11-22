@@ -19,14 +19,26 @@ After running `npm run coverage`, open `coverage/index.html` in your browser to 
 
 ## Usage
 
-The main Google Apps Script entrypoint is `src/main.ts`, which exposes:
+The Google Apps Script entrypoints are exposed through `src/index.ts`:
 
+- `DCF_INTRINSIC_PRICE`
 - `GET_FIFO_POSITIONS`
 - `GET_REALIZED_GAINS`
 - `GET_POSITION_XIRR`
 - `GET_IMPLIED_GROWTH_RATE`
 
 ### Expected inputs
+
+- `DCF_INTRINSIC_PRICE(fcfBase, shortTermGrowthRate, discountRate, terminalGrowthRate, sharesOutstanding, totalCash, totalDebt, forecastYears)`
+  - `fcfBase`: most recent free cash flow for Year 0
+  - `shortTermGrowthRate`: annual growth rate during the explicit forecast period, as a decimal
+  - `discountRate`: annual discount rate, as a decimal
+  - `terminalGrowthRate`: perpetual growth rate after the forecast period, as a decimal
+  - `sharesOutstanding`: total shares outstanding
+  - `totalCash`: total cash and cash equivalents
+  - `totalDebt`: total debt
+  - `forecastYears`: number of explicit forecast years; defaults to `10`
+  - Returns intrinsic value per share. Invalid parameters produce a sheet error that can be handled with `IFERROR`.
 
 - `GET_FIFO_POSITIONS(transactions, stocksImport)`
   - `transactions`: `[date, wkn, type, shares, price, fees, total]`

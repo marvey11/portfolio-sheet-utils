@@ -5,6 +5,8 @@ import {
   getImpliedGrowthRate,
   parseSheetDate,
   processTransactionsFIFO,
+  calculateIntrinsicSharePrice,
+  calculateDcfEquityValue,
 } from "./main";
 import { describe, expect, it } from "vitest";
 
@@ -62,6 +64,92 @@ describe("portfolio utilities", () => {
     expect(result as number).toBeGreaterThan(0);
   });
 
+  describe("calculateDcfEquityValue", () => {
+    it("computes equity value with explicit cash flows, terminal value, and net cash", () => {
+      const fcfBase = 10;
+      const growth = 0.05;
+      const discount = 0.1;
+      const terminalGrowth = 0.02;
+      const cash = 25;
+      const debt = 10;
+
+      // Hand-calculated reference for 10 years:
+      // Year t FCF = 10 * 1.05^t, discounted at 1.10^t
+      let expectedPv = 0;
+      let fcf = fcfBase;
+      for (let t = 1; t <= 10; t++) {
+        fcf *= 1 + growth;
+        expectedPv += fcf / Math.pow(1 + discount, t);
+      }
+      const terminalValue = (fcf * (1 + terminalGrowth)) / (discount - terminalGrowth);
+      expectedPv += terminalValue / Math.pow(1 + discount, 10);
+      const expectedEquityValue = expectedPv + cash - debt;
+
+      const actual = calculateDcfEquityValue(fcfBase, growth, discount, terminalGrowth, cash, debt);
+
+      expect(actual).toBeCloseTo(expectedEquityValue, 10);
+    });
+
+    it("supports custom forecast horizons and zero/negative FCF", () => {
+      const fiveYearNegativeBase = calculateDcfEquityValue(-5, 0.1, 0.09, 0.02, 15, 5, 5);
+
+      expect(Number.isFinite(fiveYearNegativeBase)).toBe(true);
+    });
+
+    it("rejects invalid parameters", () => {
+      // discountRate <= terminalGrowthRate
+      expect(() => calculateDcfEquityValue(10, 0.05, 0.08, 0.08, 0, 0)).toThrow(
+        "Invalid DCF parameters."
+      );
+
+      // discountRate <= 0
+      expect(() => calculateDcfEquityValue(10, 0.05, 0, 0.02, 0, 0)).toThrow(
+        "Invalid DCF parameters."
+      );
+
+      // shortTermGrowthRate <= -1 (-100% or worse)
+      expect(() => calculateDcfEquityValue(10, -1, 0.08, 0.02, 0, 0)).toThrow(
+        "Invalid DCF parameters."
+      );
+
+      // negative cash or debt, or non-integer/sub-1 years
+      expect(() => calculateDcfEquityValue(10, 0.05, 0.08, 0.02, -1, 0)).toThrow(
+        "Invalid DCF parameters."
+      );
+      expect(() => calculateDcfEquityValue(10, 0.05, 0.08, 0.02, 0, -1)).toThrow(
+        "Invalid DCF parameters."
+      );
+      expect(() => calculateDcfEquityValue(10, 0.05, 0.08, 0.02, 0, 0, 0)).toThrow(
+        "Invalid DCF parameters."
+      );
+      expect(() => calculateDcfEquityValue(10, 0.05, 0.08, 0.02, 0, 0, 5.5)).toThrow(
+        "Invalid DCF parameters."
+      );
+    });
+  });
+
+  describe("calculateIntrinsicSharePrice", () => {
+    it("divides total equity value by shares outstanding", () => {
+      const shares = 4;
+      const equityValue = calculateDcfEquityValue(10, 0.06, 0.09, 0.02, 30, 10, 10);
+      const sharePrice = calculateIntrinsicSharePrice(10, 0.06, 0.09, 0.02, shares, 30, 10, 10);
+
+      expect(sharePrice).toBeCloseTo(equityValue / shares, 10);
+    });
+
+    it("rejects non-positive or non-finite shares outstanding", () => {
+      expect(() => calculateIntrinsicSharePrice(10, 0.05, 0.09, 0.02, 0, 0, 0)).toThrow(
+        "Invalid DCF parameters."
+      );
+      expect(() => calculateIntrinsicSharePrice(10, 0.05, 0.09, 0.02, -100, 0, 0)).toThrow(
+        "Invalid DCF parameters."
+      );
+      expect(() =>
+        calculateIntrinsicSharePrice(10, 0.05, 0.09, 0.02, Number.POSITIVE_INFINITY, 0, 0)
+      ).toThrow("Invalid DCF parameters.");
+    });
+  });
+
   describe("getImpliedGrowthRate", () => {
     it("solves a 10-year reverse DCF", () => {
       const result = getImpliedGrowthRate(100, 10, 0.1, 0.02, 1, 0, 0);
@@ -113,5 +201,69 @@ describe("portfolio utilities", () => {
   it("parseSheetDate returns null for invalid values", () => {
     expect(parseSheetDate("")).toBeNull();
     expect(parseSheetDate("not a date")).toBeNull();
+  });
+});
+
+describe("DCF round-trip consistency", () => {
+  it("reproduces the market share price when feeding implied growth back into forward DCF", () => {
+    const scenarios = [
+      {
+        sharePrice: 100,
+        fcfBase: 10,
+        discountRate: 0.1,
+        terminalGrowthRate: 0.02,
+        sharesOutstanding: 1,
+        totalCash: 0,
+        totalDebt: 0,
+        forecastYears: 10,
+      },
+      {
+        sharePrice: 145.5,
+        fcfBase: 12.4,
+        discountRate: 0.085,
+        terminalGrowthRate: 0.025,
+        sharesOutstanding: 2.5,
+        totalCash: 40,
+        totalDebt: 15,
+        forecastYears: 10,
+      },
+      {
+        sharePrice: 68.25,
+        fcfBase: 8,
+        discountRate: 0.09,
+        terminalGrowthRate: 0.02,
+        sharesOutstanding: 1.8,
+        totalCash: 5,
+        totalDebt: 22,
+        forecastYears: 7,
+      },
+    ];
+
+    for (const s of scenarios) {
+      const impliedGrowth = getImpliedGrowthRate(
+        s.sharePrice,
+        s.fcfBase,
+        s.discountRate,
+        s.terminalGrowthRate,
+        s.sharesOutstanding,
+        s.totalCash,
+        s.totalDebt,
+        { forecastYears: s.forecastYears }
+      );
+
+      const reconstructedPrice = calculateIntrinsicSharePrice(
+        s.fcfBase,
+        impliedGrowth,
+        s.discountRate,
+        s.terminalGrowthRate,
+        s.sharesOutstanding,
+        s.totalCash,
+        s.totalDebt,
+        s.forecastYears
+      );
+
+      // Default rateTolerance is 1e-7, so price precision is tight (within ~0.001%–0.01%).
+      expect(reconstructedPrice).toBeCloseTo(s.sharePrice, 3);
+    }
   });
 });

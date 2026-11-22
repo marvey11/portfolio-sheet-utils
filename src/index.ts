@@ -1,9 +1,10 @@
 import {
+  calculateIntrinsicSharePrice,
   getFifoPositions,
-  SheetRange,
-  getRealizedGains,
-  getPositionXirr,
   getImpliedGrowthRate,
+  getPositionXirr,
+  getRealizedGains,
+  SheetRange,
 } from "./main";
 
 function GET_FIFO_POSITIONS(
@@ -24,6 +25,28 @@ function GET_POSITION_XIRR(
   stockData: SheetRange
 ): number | string {
   return getPositionXirr(wknFilter, transactions, dividends, stockData);
+}
+
+function DCF_INTRINSIC_PRICE(
+  fcfBase: number,
+  shortTermGrowthRate: number,
+  discountRate: number,
+  terminalGrowthRate: number,
+  sharesOutstanding: number,
+  totalCash: number,
+  totalDebt: number,
+  forecastYears = 10
+): number {
+  return calculateIntrinsicSharePrice(
+    fcfBase,
+    shortTermGrowthRate,
+    discountRate,
+    terminalGrowthRate,
+    sharesOutstanding,
+    totalCash,
+    totalDebt,
+    forecastYears
+  );
 }
 
 function GET_IMPLIED_GROWTH_RATE(
@@ -47,7 +70,8 @@ function GET_IMPLIED_GROWTH_RATE(
 }
 
 const g = globalThis as Record<string, unknown>;
+g.DCF_INTRINSIC_PRICE = DCF_INTRINSIC_PRICE;
 g.GET_FIFO_POSITIONS = GET_FIFO_POSITIONS;
-g.GET_REALIZED_GAINS = GET_REALIZED_GAINS;
-g.GET_POSITION_XIRR = GET_POSITION_XIRR;
 g.GET_IMPLIED_GROWTH_RATE = GET_IMPLIED_GROWTH_RATE;
+g.GET_POSITION_XIRR = GET_POSITION_XIRR;
+g.GET_REALIZED_GAINS = GET_REALIZED_GAINS;
